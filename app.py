@@ -110,13 +110,40 @@ def extract_entities(text: str) -> dict:
 # ──────────────────────────────────────────────
 # CLAIM NORMALIZER (Gemini)
 # ──────────────────────────────────────────────
-_NORMALIZER_PROMPT = """You are an insurance claims expert... [Keep your prompt the same] ..."""
+_NORMALIZER_PROMPT = """You are an insurance claims expert.
+
+Convert the following raw claim description into structured JSON.
+
+Extract:
+- loss_type
+- severity (low / medium / high)
+- affected_asset
+- incident_date (if mentioned, else null)
+- location (if mentioned, else null)
+- short_summary (1 line)
+- confidence_score (0 to 1)
+
+Return ONLY valid JSON. No explanation, no markdown fences.
+
+CLAIM TEXT:
+{text}"""
 
 def normalize_claim_with_gemini(text: str) -> dict:
-    model = get_gemini_model()
+    # 🛑 TEMPORARY MOCK RESPONSE TO BYPASS API LIMITS 🛑
+    # Uncomment the block below and delete this return statement when you have a fresh API key
+    return {
+        "loss_type": "collision and theft",
+        "severity": "high",
+        "affected_asset": "Lamborghini",
+        "incident_date": "null",
+        "location": "null",
+        "short_summary": "Vehicle crashed, caught fire, and luxury items were stolen.",
+        "confidence_score": 0.45
+    }
     
+    """
+    model = get_gemini_model()
     try:
-        # The API call is now INSIDE the try block
         response = model.generate_content(_NORMALIZER_PROMPT.format(text=text))
         
         cleaned = response.text.strip()
@@ -135,6 +162,7 @@ def normalize_claim_with_gemini(text: str) -> dict:
             "error": f"API or Parse Error: {str(e)}", 
             "raw_response": "Error"
         }
+    """
 
 # ──────────────────────────────────────────────
 # FRAUD ENGINE v4
