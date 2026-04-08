@@ -7,7 +7,6 @@ import subprocess
 import io
 import PyPDF2
 from datetime import datetime
-from dotenv import load_dotenv
 
 # ------------------ ENV SETUP ------------------
 API_KEY = st.secrets.get("GOOGLE_API_KEY")
@@ -20,8 +19,10 @@ if not API_KEY:
 try:
     nlp = spacy.load("en_core_web_sm")
 except:
-    st.error("spaCy model not installed. Check requirements.txt")
-    st.stop()
+    import subprocess
+    import sys
+    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"], check=True)  
+    nlp = spacy.load("en_core_web_sm")
 
 # ------------------ GEMINI SETUP ------------------
 @st.cache_resource
