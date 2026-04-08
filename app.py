@@ -19,7 +19,8 @@ if not API_KEY:
 try:
     nlp = spacy.load("en_core_web_sm")
 except:
-    nlp = spacy.blank("en")
+    st.error("❌ spaCy model not loaded. Check requirements.txt")
+    st.stop()
 # ------------------ GEMINI SETUP ------------------
 @st.cache_resource
 def get_gemini_model():
