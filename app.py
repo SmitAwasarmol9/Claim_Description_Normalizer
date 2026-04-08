@@ -19,11 +19,7 @@ if not API_KEY:
 try:
     nlp = spacy.load("en_core_web_sm")
 except:
-    import subprocess
-    import sys
-    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"], check=True)  
-    nlp = spacy.load("en_core_web_sm")
-
+    nlp = spacy.blank("en")
 # ------------------ GEMINI SETUP ------------------
 @st.cache_resource
 def get_gemini_model():
