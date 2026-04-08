@@ -10,17 +10,18 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # ------------------ ENV SETUP ------------------
-load_dotenv()
-API_KEY = os.getenv("GOOGLE_API_KEY")
+API_KEY = st.secrets.get("GOOGLE_API_KEY")
+
 if not API_KEY:
-    raise SystemExit("⚠️ GOOGLE_API_KEY not set in .env")
+    st.error("❌ API Key not found. Set it in Streamlit secrets.")
+    st.stop()
 
 # ------------------ SPACY SETUP ------------------
 try:
     nlp = spacy.load("en_core_web_sm")
-except OSError:
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
-    nlp = spacy.load("en_core_web_sm")
+except:
+    st.error("spaCy model not installed. Check requirements.txt")
+    st.stop()
 
 # ------------------ GEMINI SETUP ------------------
 @st.cache_resource
