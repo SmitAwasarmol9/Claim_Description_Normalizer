@@ -8,6 +8,7 @@ from functools import lru_cache
 import PyPDF2
 import spacy
 import streamlit as st
+from google.api_core.exceptions import ResourceExhausted
 
 # ──────────────────────────────────────────────
 # ENV / SECRETS
@@ -109,37 +110,31 @@ def extract_entities(text: str) -> dict:
 # ──────────────────────────────────────────────
 # CLAIM NORMALIZER (Gemini)
 # ──────────────────────────────────────────────
-_NORMALIZER_PROMPT = """You are an insurance claims expert.
-
-Convert the following raw claim description into structured JSON.
-
-Extract:
-- loss_type
-- severity (low / medium / high)
-- affected_asset
-- incident_date (if mentioned, else null)
-- location (if mentioned, else null)
-- short_summary (1 line)
-- confidence_score (0 to 1)
-
-Return ONLY valid JSON. No explanation, no markdown fences.
-
-CLAIM TEXT:
-{text}"""
-
+_NORMALIZER_PROMPT = """You are an insurance claims expert... [Keep your prompt the same] ..."""
 
 def normalize_claim_with_gemini(text: str) -> dict:
     model = get_gemini_model()
-    response = model.generate_content(_NORMALIZER_PROMPT.format(text=text))
+    
     try:
+        # The API call is now INSIDE the try block
+        response = model.generate_content(_NORMALIZER_PROMPT.format(text=text))
+        
         cleaned = response.text.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.split("```")[1]
         cleaned = re.sub(r"^json\s*", "", cleaned).strip()
         return json.loads(cleaned)
-    except Exception:
-        return {"error": "Invalid JSON from model", "raw_response": response.text}
-
+        
+    except ResourceExhausted:
+        return {
+            "error": "Google API rate limit exceeded. Please wait 60 seconds and try again.",
+            "raw_response": "Resource Exhausted"
+        }
+    except Exception as e:
+        return {
+            "error": f"API or Parse Error: {str(e)}", 
+            "raw_response": "Error"
+        }
 
 # ──────────────────────────────────────────────
 # FRAUD ENGINE v4
