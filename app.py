@@ -836,28 +836,29 @@ if analyze:
 
             st.markdown('</div>', unsafe_allow_html=True)
 
-# ── PDF Download (OUTSIDE r3) ──
-st.markdown("<hr class='divider'>", unsafe_allow_html=True)
+# ── PDF Download ──
+if analyze:
+    st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
-try:
-    pdf_buffer = generate_pdf(
-        structured_output,
-        fraud_score,
-        fraud_risk,
-        fraud_flags,
-        entities,
-        text
-    )
+    try:
+        pdf_buffer = generate_pdf(
+            structured_output,
+            fraud_score,
+            fraud_risk,
+            fraud_flags,
+            entities,
+            text
+        )
 
-    st.download_button(
-        label="📥 Download Full Report as PDF",
-        data=pdf_buffer,
-        file_name=f"claim_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-        mime="application/pdf",
-    )
+        st.download_button(
+            label="📥 Download Full Report as PDF",
+            data=pdf_buffer,
+            file_name=f"claim_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            mime="application/pdf",
+        )
 
-except ImportError:
-    st.error("📦 Install reportlab: `pip install reportlab`")
+    except ImportError:
+        st.error("📦 Install reportlab: `pip install reportlab`")
 
 # ── Footer ──
 st.markdown("<hr class='divider'>", unsafe_allow_html=True)
