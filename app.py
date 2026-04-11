@@ -308,6 +308,11 @@ def calculate_fraud_score(data: dict, raw_text: str) -> tuple[int, str, list[str
     elif confidence < 0.7:
         score += 3
 
+        # Suspicious crowd presence
+    if "people gathered" in text_lower:
+        score += 5
+    flags.append("👥 Unverified third-party presence at scene")
+
     # Final normalization
     score = max(0, min(score, 100))
     risk = "high" if score >= 60 else "medium" if score >= 30 else "low"
@@ -578,8 +583,8 @@ def extract_entities(text: str) -> dict:
     for ent in doc.ents:
         label = ent.label_
 
-        if label == "PERSON" and is_vehicle(ent.text):
-            continue
+        if is_vehicle(ent.text):
+            label = "PRODUCT"
 
         if label not in entities:
             entities[label] = []
