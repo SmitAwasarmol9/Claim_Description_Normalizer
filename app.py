@@ -772,8 +772,10 @@ if analyze:
 
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
+        # ✅ Columns defined properly
         r1, r2, r3 = st.columns([0.9, 1.4, 1.1], gap="large")
 
+        # ── r1: Score ──
         with r1:
             st.markdown('<div class="card">', unsafe_allow_html=True)
 
@@ -790,8 +792,10 @@ if analyze:
             risk_label = {"high": "🚨 HIGH RISK", "medium": "⚠️ MEDIUM RISK", "low": "✅ LOW RISK"}.get(fraud_risk, "")
 
             st.markdown(f'<div class="risk-banner {risk_class}">{risk_label}</div>', unsafe_allow_html=True)
+
             st.markdown('</div>', unsafe_allow_html=True)
 
+        # ── r2: Flags ──
         with r2:
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.markdown('<div class="card-title">🔍 Fraud Flags</div>', unsafe_allow_html=True)
@@ -806,31 +810,31 @@ if analyze:
 
             st.markdown('</div>', unsafe_allow_html=True)
 
-with r3:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">🧠 Entities</div>', unsafe_allow_html=True)
+        # ── r3: Entities ──
+        with r3:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown('<div class="card-title">🧠 Entities</div>', unsafe_allow_html=True)
 
-    if entities:
-        for etype, evals in entities.items():
-            st.markdown(
-                f'<span class="entity-type">{etype}</span>',
-                unsafe_allow_html=True
-            )
+            if entities:
+                for etype, evals in entities.items():
+                    st.markdown(
+                        f'<span class="entity-type">{etype}</span>',
+                        unsafe_allow_html=True
+                    )
 
-            values_html = "".join(
-                f'<span class="entity-value">{str(v)}</span>'
-                for v in evals
-            )
+                    values_html = "".join(
+                        f'<span class="entity-value">{str(v)}</span>'
+                        for v in evals
+                    )
 
-            st.markdown(values_html, unsafe_allow_html=True)
-    else:
-        st.markdown(
-            '<span style="color:var(--text-secondary);font-size:13px;">No entities detected.</span>',
-            unsafe_allow_html=True
-        )
+                    st.markdown(values_html, unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    '<span style="color:var(--text-secondary);font-size:13px;">No entities detected.</span>',
+                    unsafe_allow_html=True
+                )
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ── PDF Download (OUTSIDE r3) ──
 st.markdown("<hr class='divider'>", unsafe_allow_html=True)
