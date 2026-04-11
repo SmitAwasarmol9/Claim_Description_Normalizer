@@ -8,14 +8,22 @@ import PyPDF2
 import spacy
 import streamlit as st
 from groq import Groq
-# ❌ Removed: from google.api_core.exceptions import ResourceExhausted
 
 # ──────────────────────────────────────────────
 # ENV / SECRETS
 # ──────────────────────────────────────────────
-API_KEY = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
+API_KEY = None
+
+# Try Streamlit secrets (deployment)
+if "GROQ_API_KEY" in st.secrets:
+    API_KEY = st.secrets["GROQ_API_KEY"]
+
+# Fallback to environment variable (local)
 if not API_KEY:
-    st.error("❌ API Key not found. Set it in Streamlit secrets.")
+    API_KEY = os.getenv("GROQ_API_KEY")
+
+if not API_KEY:
+    st.error("❌ GROQ_API_KEY not found. Set it in Streamlit secrets or environment.")
     st.stop()
 
 # ✅ Create Groq client ONCE (performance fix)
@@ -658,6 +666,26 @@ st.markdown("""
     color: var(--primary-light);
     margin: 12px 8px 0 0; font-weight: 500;
 }
+/* ── ENTITY STYLING FIXED ── */
+.entity-type {
+    color: #f59e0b !important;  /* force orange */
+    font-weight: 700;
+    margin-top: 8px;
+    display: block;
+}
+
+.entity-value {
+    display: inline-block;
+    background: rgba(99,102,241,.15);
+    border: 1px solid rgba(99,102,241,.3);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #60a5fa !important;  /* force blue */
+    margin: 3px 4px;
+    font-family: 'Fira Code', monospace;
+    font-weight: 500;
+}            
 
 /* (rest CSS unchanged) */
 </style>
@@ -778,47 +806,54 @@ if analyze:
 
             st.markdown('</div>', unsafe_allow_html=True)
 
-        with r3:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.markdown('<div class="card-title">🧠 Entities</div>', unsafe_allow_html=True)
+with r3:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="card-title">🧠 Entities</div>', unsafe_allow_html=True)
 
-            if entities:
-                for etype, evals in entities.items():
-                    st.markdown(f"**{etype}**")
-                    st.markdown(
-                        "".join(f'<span class="entity-tag">{str(v)}</span>' for v in evals),
-                        unsafe_allow_html=True
-                    )
-            else:
-                st.markdown(
-                    '<span style="color:var(--text-secondary);font-size:13px;">No entities detected.</span>',
-                    unsafe_allow_html=True
-                )
-
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # ── PDF Download ──
-        st.markdown("<hr class='divider'>", unsafe_allow_html=True)
-
-        try:
-            pdf_buffer = generate_pdf(
-                structured_output,
-                fraud_score,
-                fraud_risk,
-                fraud_flags,
-                entities,
-                text
+    if entities:
+        for etype, evals in entities.items():
+            st.markdown(
+                f'<span class="entity-type">{etype}</span>',
+                unsafe_allow_html=True
             )
 
-            st.download_button(
-                label="📥 Download Full Report as PDF",
-                data=pdf_buffer,
-                file_name=f"claim_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                mime="application/pdf",
+            values_html = "".join(
+                f'<span class="entity-value">{str(v)}</span>'
+                for v in evals
             )
 
-        except ImportError:
-            st.error("📦 Install reportlab: `pip install reportlab`")
+            st.markdown(values_html, unsafe_allow_html=True)
+    else:
+        st.markdown(
+            '<span style="color:var(--text-secondary);font-size:13px;">No entities detected.</span>',
+            unsafe_allow_html=True
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ── PDF Download (OUTSIDE r3) ──
+st.markdown("<hr class='divider'>", unsafe_allow_html=True)
+
+try:
+    pdf_buffer = generate_pdf(
+        structured_output,
+        fraud_score,
+        fraud_risk,
+        fraud_flags,
+        entities,
+        text
+    )
+
+    st.download_button(
+        label="📥 Download Full Report as PDF",
+        data=pdf_buffer,
+        file_name=f"claim_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+        mime="application/pdf",
+    )
+
+except ImportError:
+    st.error("📦 Install reportlab: `pip install reportlab`")
 
 # ── Footer ──
 st.markdown("<hr class='divider'>", unsafe_allow_html=True)
