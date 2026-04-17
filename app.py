@@ -141,15 +141,14 @@ CLAIM TEXT:
 # FRAUD ENGINE v4
 # ──────────────────────────────────────────────
 
-# Pre-compiled constants — evaluated once at import time
-_VAGUE_KEYWORDS: tuple = (
+_VAGUE_KEYWORDS = (
     "don't remember", "not sure", "somewhere", "maybe", "i guess",
     "approximately", "probably", "around somewhere", "i don't know",
     "can't recall", "forgot", "no idea", "not certain", "unclear",
     "i think", "i believe", "roughly", "i suppose", "could be",
 )
 
-_FRAUD_PHRASES: tuple = (
+_FRAUD_PHRASES = (
     "everything destroyed", "entire car destroyed", "completely destroyed",
     "everything gone", "total loss", "fully destroyed", "nothing left",
     "burned to the ground", "completely wrecked", "all items stolen",
@@ -157,35 +156,35 @@ _FRAUD_PHRASES: tuple = (
     "complete write-off", "everything was taken",
 )
 
-_LOSS_KEYWORDS: tuple = (
+_LOSS_KEYWORDS = (
     "fire", "theft", "stolen", "flood", "accident", "crash",
     "collision", "vandalism", "explosion", "earthquake",
 )
 
-_RECENT_WORDS: tuple = (
+_RECENT_WORDS = (
     "just now", "right now", "this morning", "tonight",
     "few minutes ago", "an hour ago",
 )
 
-_LUXURY_KEYWORDS: tuple = (
+_LUXURY_KEYWORDS = (
     "rolex", "ferrari", "lamborghini", "bentley", "porsche",
     "diamond", "gold jewelry", "luxury watch", "macbook pro",
     "iphone 15", "iphone 16", "designer bag", "louis vuitton",
     "gucci", "yacht", "artwork", "antique",
 )
 
-_URGENCY_PHRASES: tuple = (
+_URGENCY_PHRASES = (
     "need money urgently", "urgent payment", "need settlement fast",
     "desperate", "immediately", "asap", "need it now",
     "pay immediately", "settle fast", "need funds",
 )
 
-_PRIOR_CLAIM_PHRASES: tuple = (
+_PRIOR_CLAIM_PHRASES = (
     "last time", "previous claim", "before this", "again",
     "third time", "second time", "another claim",
 )
 
-_CONTRADICTION_PAIRS: tuple = (
+_CONTRADICTION_PAIRS = (
     ("parked", "driving"),
     ("at home", "on the road"),
     ("no one was there", "witnessed"),
@@ -193,16 +192,14 @@ _CONTRADICTION_PAIRS: tuple = (
 )
 
 
-def calculate_fraud_score(data: dict, raw_text: str) -> tuple[int, str, list[str]]:
-    # Safety check
+def calculate_fraud_score(data: dict, raw_text: str):
     if not isinstance(data, dict) or "error" in data:
         return 0, "unknown", []
 
     score = 0
+    flags = []
     text_lower = raw_text.lower()
-    flags: list[str] = []
 
-    # spaCy processing
     doc = nlp(raw_text)
 
     detected_dates = [e.text.lower() for e in doc.ents if e.label_ == "DATE"]
@@ -212,108 +209,124 @@ def calculate_fraud_score(data: dict, raw_text: str) -> tuple[int, str, list[str
     llm_location = str(data.get("location") or "").lower()
 
     def is_null(v):
-        return not v or v.strip() == "" or v == "null"
+        return not v or str(v).strip() == "" or v == "null"
 
-    # 1. Missing critical fields
+    # 1. Missing fields (BOOSTED)
     if is_null(llm_date):
-        score += 8
-        flags.append("⚠️ No incident date provided")
+        score += 15
+        flags.append("⚠️ No incident date")
 
     if is_null(llm_location):
-        score += 8
-        flags.append("⚠️ No incident location provided")
+        score += 15
+        flags.append("⚠️ No location")
 
-    # 2. Date not verifiable
-    if not is_null(llm_date):
-        if not any(d in llm_date or llm_date in d for d in detected_dates):
-            score += 10
-            flags.append("🔍 Incident date not verifiable from claim text")
+    # 2. Verification
+    if llm_date and not any(d in llm_date or llm_date in d for d in detected_dates):
+        score += 10
+        flags.append("🔍 Date not verifiable")
 
-    # 3. Location not verifiable
-    if not is_null(llm_location):
-        if not any(loc in llm_location or llm_location in loc for loc in detected_locations):
-            score += 10
-            flags.append("🔍 Incident location not verifiable from claim text")
+    if llm_location and not any(loc in llm_location or llm_location in loc for loc in detected_locations):
+        score += 10
+        flags.append("🔍 Location not verifiable")
 
-    # 4. Severity
+    # 3. Severity (BOOSTED)
     if str(data.get("severity", "")).lower() == "high":
-        score += 5
-        flags.append("📈 High severity claim detected")
+        score += 12
+        flags.append("📈 High severity")
 
-    # 5. Vague language
+    # 4. Vague language (BOOSTED)
     matched_vague = [w for w in _VAGUE_KEYWORDS if w in text_lower]
     if matched_vague:
-        score += min(6 * len(matched_vague), 24)
-        flags.append(f"🗣️ Vague language detected: {', '.join(matched_vague[:3])}")
+        score += min(10 * len(matched_vague), 40)
+        flags.append("🗣️ Vague statements detected")
 
-    # 6. Exaggeration phrases
+    # 5. MULTI-VAGUE BOOST (KEY FIX)
+    if len(matched_vague) >= 2:
+        score += 15
+        flags.append("⚠️ Multiple uncertainties")
+
+    # 6. Exaggeration
     matched_fraud = [p for p in _FRAUD_PHRASES if p in text_lower]
     if matched_fraud:
-        score += min(10 * len(matched_fraud), 30)
-        flags.append(f"🚨 Exaggeration phrases: {', '.join(matched_fraud[:2])}")
+        score += min(12 * len(matched_fraud), 35)
+        flags.append("🚨 Exaggeration detected")
 
     # 7. Claim length
     word_count = len(text_lower.split())
     if word_count < 7:
-        score += 15
-        flags.append(f"📏 Claim is very short ({word_count} words) — lacks detail")
+        score += 20
+        flags.append("📏 Very short claim")
     elif word_count < 15:
-        score += 5
-        flags.append(f"📏 Claim is brief ({word_count} words)")
+        score += 8
+        flags.append("📏 Brief claim")
 
     # 8. Multiple loss types
     matched_losses = [k for k in _LOSS_KEYWORDS if k in text_lower]
     if len(matched_losses) >= 2:
-        score += 12
-        flags.append(f"⚡ Multiple loss types in one claim: {', '.join(matched_losses)}")
+        score += 15
+        flags.append("⚡ Multiple loss types")
 
-    # 9. Suspiciously recent with no date
+    # 9. Recent + no date
     if any(w in text_lower for w in _RECENT_WORDS) and is_null(llm_date):
-        score += 8
-        flags.append("⏰ Claim filed immediately with no specific date")
+        score += 12
+        flags.append("⏰ Immediate claim without date")
 
-    # 10. High-value / luxury assets
-    matched_luxury = [k for k in _LUXURY_KEYWORDS if k in text_lower]
-    if matched_luxury:
-        score += 8
-        flags.append(f"💎 High-value asset keywords: {', '.join(matched_luxury[:2])}")
+    # 10. Luxury items
+    if any(k in text_lower for k in _LUXURY_KEYWORDS):
+        score += 10
+        flags.append("💎 High-value asset")
 
-    # 11. Urgency / pressure language
+    # 11. Urgency
     if any(p in text_lower for p in _URGENCY_PHRASES):
-        score += 10
-        flags.append("🔔 Urgency / pressure language detected")
+        score += 12
+        flags.append("🔔 Urgency detected")
 
-    # 12. Prior claim references
+    # 12. Prior claims
     if any(p in text_lower for p in _PRIOR_CLAIM_PHRASES):
-        score += 10
-        flags.append("📋 Possible prior claim reference — repeated claimant pattern")
+        score += 12
+        flags.append("📋 Repeat claim pattern")
 
     # 13. Contradictions
     for a, b in _CONTRADICTION_PAIRS:
         if a in text_lower and b in text_lower:
-            score += 12
-            flags.append(f"❌ Contradictory info: '{a}' and '{b}'")
+            score += 15
+            flags.append("❌ Contradiction detected")
 
-    # 14. LLM confidence (SAFE FIX)
+    # 14. No witness
+    if "no witness" in text_lower or "no one was there" in text_lower:
+        score += 12
+        flags.append("👁️ No witnesses")
+
+    # 15. High claim amount
+    try:
+        amount = int(data.get("estimated_loss") or 0)
+        if amount > 100000:
+            score += 12
+        if amount > 200000:
+            score += 10
+            flags.append("💰 High claim amount")
+    except:
+        pass
+
+    # 16. AI Confidence
     try:
         confidence = float(data.get("confidence_score") or 0.5)
-    except (ValueError, TypeError):
+    except:
         confidence = 0.5
 
     if confidence > 0.9:
         score -= 5
     elif confidence < 0.5:
-        score += 8
-        flags.append(f"🤖 Low AI confidence ({confidence:.2f}) — unclear claim")
+        score += 10
+        flags.append("🤖 Low AI confidence")
     elif confidence < 0.7:
-        score += 3
-
-        # Suspicious crowd presence
-    if "people gathered" in text_lower:
         score += 5
-    flags.append("👥 Unverified third-party presence at scene")
 
-    # Final normalization
+    # FINAL BOOST (KEY)
+    if 30 <= score <= 60:
+        score += 10
+
+    # Normalize
     score = max(0, min(score, 100))
     risk = "high" if score >= 60 else "medium" if score >= 30 else "low"
 
