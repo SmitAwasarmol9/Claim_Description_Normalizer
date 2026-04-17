@@ -383,7 +383,7 @@ def generate_pdf(structured_output, fraud_score, fraud_risk, fraud_flags, entiti
         leftIndent=8, rightIndent=8, borderPad=6
     )
 
-    footer_style = ParagraphStyle(
+    footer_style = ParagraphStyle( 
         "Footer", fontSize=8, fontName="Helvetica",
         textColor=colors.HexColor("#999999"),
         alignment=TA_CENTER, spaceBefore=6
@@ -700,7 +700,7 @@ st.markdown("""
 st.markdown("""
 <div class="header-container">
   <div class="header-content">
-    <div class="header-title">🧾 Claims Analyzer Pro</div>
+    <div class="header-title">🧾 Claims Description Normalizer</div>
     <div class="header-subtitle">Intelligent claim processing with AI-powered fraud detection</div>
     <span class="badge">⚡ Groq LLaMA 3</span>
     <span class="badge">🧠 spaCy NER</span>
@@ -832,7 +832,7 @@ if analyze:
                         for v in evals
                     )
 
-                    st.markdown(values_html, unsafe_allow_html=True)
+                    st.markdown(values_html, unsafe_allow_html=True) 
             else:
                 st.markdown(
                     '<span style="color:var(--text-secondary);font-size:13px;">No entities detected.</span>',
